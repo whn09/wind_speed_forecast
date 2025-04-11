@@ -1,0 +1,5 @@
+s3fs
+torch
+xarray
+netcdf4
+pyarrow
