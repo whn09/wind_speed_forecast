@@ -61,9 +61,8 @@ def open_s3_dataset(path):
         raise  # 重新抛出异常，触发重试
     finally:
         # 确保临时文件被删除
-        # if os.path.exists(temp_path):
-        #     os.remove(temp_path)
-        pass
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 def process_month(select_month):
     select_month_end = get_last_day_of_month(select_month+'01')
@@ -102,34 +101,10 @@ def process_month(select_month):
     end2 = time.time()
     print('Save parquet time:', end2-end1)
 
-    # s3 = s3fs.S3FileSystem(anon=False)
-    # for d in tqdm(range(1, int(select_month_end)+1)):
-    #     if d < 10:
-    #         d = '0'+str(d)
-    #     else:
-    #         d = str(d)
-    #     select_date = select_month+d
-    #     for h in range(24):
-    #         if h < 10:
-    #             h = '0'+str(h)
-    #         else:
-    #             h = str(h)
-    #         select_hour = select_date+h
-    #         select_hour_datetime = pd.to_datetime(
-    #             select_hour, format='%Y%m%d%H')
-    #         select_surface_ds = surface_ds.sel(time=select_hour_datetime)
-    #         surface_np = select_surface_ds[[
-    #             'msl', 'u10', 'v10', 't2m']].to_array().values
-    #         # np.save(f'surface/surface_{select_hour}.npy', surface_np)
-    #         surface_tensor = torch.from_numpy(surface_np)
-    #         torch.save(surface_tensor, f'surface/surface_{select_hour}.pt')
-            
-    #         # 将结果保存到S3
-    #         buffer = io.BytesIO()
-    #         torch.save(surface_tensor, buffer)
-    #         buffer.seek(0)
-    #         with s3.open(f's3://{s3_bucket}/{s3_prefix}/surface/surface_{select_hour}.pt', 'wb') as f:
-    #             f.write(buffer.getvalue())
+    s3 = s3fs.S3FileSystem(anon=False)
+    s3.upload(os.path.join(base_dir, 'surface', f'wind_speed_{select_month}.parquet'), f's3://{s3_bucket}/{s3_prefix}/surface/wind_speed_{select_month}.parquet')
+    end3 = time.time()
+    print('Upload parquet time:', end3-end2)
 
 s3_bucket = "datalab"
 s3_prefix = "nsf-ncar-era5"
@@ -138,7 +113,7 @@ base_dir = '/opt/dlami/nvme'
 pressure_levels = [1000, 925, 850, 700, 600,
                    500, 400, 300, 250, 200, 150, 100, 50]
 startDate = '20150101'
-endDate = '20150131'
+endDate = '20241231'
 select_dates = list(pd.date_range(start=startDate, end=endDate, freq='1D'))
 select_dates = [date.strftime('%Y%m%d') for date in select_dates]
 # select_months = set([select_date[:6] for select_date in select_dates])
@@ -151,7 +126,7 @@ print('select_months:', len(select_months))
 os.system('mkdir -p surface')
 
 # 设置进程数，可以根据你的CPU核心数进行调整
-num_processes = 1  # mp.cpu_count()  # 使用所有可用的CPU核心
+num_processes = 60  # mp.cpu_count()  # 使用所有可用的CPU核心
 
 # 使用进程池并行处理
 with mp.Pool(num_processes) as pool:
