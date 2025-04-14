@@ -23,21 +23,21 @@ train_data = TimeSeriesDataFrame.from_data_frame(
 
 print('train_data:', train_data)
 
-# predictor = TimeSeriesPredictor(
-#     freq=f'{horizon}h',
-#     prediction_length=1,
-#     path=f"autogluon-wind-speed-horizon-{horizon}",
-#     target="wind_speed",
-#     eval_metric="RMSE",
-# )
+predictor = TimeSeriesPredictor(
+    freq=f'{horizon}h',
+    prediction_length=1,
+    path=f"autogluon-wind-speed-horizon-{horizon}",
+    target="wind_speed",
+    eval_metric="RMSE",
+)
 
-# predictor.fit(
-#     train_data,
-#     presets="high_quality",
-#     time_limit=120,
-# )
+predictor.fit(
+    train_data,
+    presets="high_quality",
+    time_limit=600,  # recommended: 3600
+)
 
-predictor = TimeSeriesPredictor.load(f"autogluon-wind-speed-horizon-{horizon}")
+# predictor = TimeSeriesPredictor.load(f"autogluon-wind-speed-horizon-{horizon}")
 
 # predictions = predictor.predict(train_data)
 # print('predictions:', predictions)
