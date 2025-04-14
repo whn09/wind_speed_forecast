@@ -2,7 +2,6 @@ import os
 import time
 import pandas as pd
 from tqdm import tqdm
-from autogluon.timeseries import TimeSeriesDataFrame, TimeSeriesPredictor
 
 # 新疆边界
 lat_min, lat_max = 34, 49
@@ -25,12 +24,7 @@ def load_parquet(filename, horizon=1):
         # 只保留0, 3, 6, 9, 12, 15, 18, 21点的数据
         df = df[df['time'].dt.hour.isin([0, 3, 6, 9, 12, 15, 18, 21])]
     # 对于horizon=1或其他值，保留所有时间点的数据
-    
-    # data = TimeSeriesDataFrame.from_data_frame(
-    #     df,
-    #     id_column="item_id",
-    #     timestamp_column="time"
-    # )
+
     return df
 
 if __name__ == '__main__':
@@ -46,7 +40,7 @@ if __name__ == '__main__':
     print(f"处理{len(filenames)}个parquet文件，horizon={horizon}...")
     
     # 遍历所有parquet文件并合并数据
-    for filename in tqdm(filenames[:2]):
+    for filename in tqdm(filenames):
         file_path = os.path.join(base_dir, filename)
         start = time.time()
         data = load_parquet(file_path, horizon=horizon)
