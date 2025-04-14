@@ -68,8 +68,9 @@ def process_month(select_month):
     select_month_end = get_last_day_of_month(select_month+'01')
     print(select_month, select_month_end)
 
-    # if os.path.exists(f'surface/surface_{select_month}.nc'):
-    #     continue
+    if os.path.exists(os.path.join(base_dir, 'surface', f'wind_speed_{select_month}.parquet')):
+        print(select_month, 'existed.')
+        return
 
     load_start = time.time()
     u10_ds = open_s3_dataset(f's3://{s3_bucket}/{s3_prefix}/e5.oper.an.sfc/{select_month}/e5.oper.an.sfc.128_165_10u.ll025sc.{select_month}0100_{select_month}{select_month_end}23.nc')
