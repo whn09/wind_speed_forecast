@@ -32,7 +32,7 @@ if __name__ == '__main__':
     horizon = 24  # 24, 6, 3, 1
     
     # 获取所有parquet文件的列表
-    filenames = [f for f in os.listdir(base_dir) if f.endswith('parquet')]
+    filenames = [f for f in os.listdir(base_dir) if f.endswith('parquet') and f.startswith('wind_speed')]
     
     # 创建一个空的TimeSeriesDataFrame或普通DataFrame来存储合并后的数据
     all_data = None
@@ -45,7 +45,7 @@ if __name__ == '__main__':
         start = time.time()
         data = load_parquet(file_path, horizon=horizon)
         end = time.time()
-        print('load_parquet time:', end-start)
+        # print('load_parquet time:', end-start)
         
         # 如果all_data为空，初始化它
         if all_data is None:
