@@ -1,9 +1,11 @@
 import os
+import time
 import numpy as np
 import pandas as pd
 from autogluon.timeseries import TimeSeriesDataFrame, TimeSeriesPredictor
 import matplotlib.pyplot as plt
 from datetime import timedelta
+from sklearn.metrics import mean_squared_error
 
 horizon = 24  # 24,6,3,1
 train_test_split_time = pd.Timestamp('2024-01-01 00:00:00')
@@ -34,7 +36,7 @@ predictor = TimeSeriesPredictor(
 predictor.fit(
     train_data,
     presets="high_quality",
-    time_limit=600,  # recommended: 3600
+    time_limit=3600,  # recommended: 3600
 )
 
 # predictor = TimeSeriesPredictor.load(f"autogluon-wind-speed-horizon-{horizon}")
@@ -45,6 +47,7 @@ predictor.fit(
 # 按天评估RMSE
 start_date = test_df['time'].min().date()
 end_date = test_df['time'].max().date()
+# end_date = start_date + timedelta(days=30)  # TODO use only some days
 current_date = start_date
 current_df = train_df
 
@@ -55,28 +58,37 @@ while current_date <= end_date:
     
     # 获取当天的测试数据
     daily_test_df = test_df[(test_df['time'].dt.date == current_date)]
+    # print('daily_test_df:', daily_test_df)
     
     if len(daily_test_df) > 0:
-        current_df = pd.concat([current_df, daily_test_df])
-        
+        start = time.time()
         daily_test_data = TimeSeriesDataFrame.from_data_frame(
             current_df,
             id_column="item_id",
             timestamp_column="time"
         )
+        end = time.time()
+        # print('TimeSeriesDataFrame time:', end-start)
         # print('daily_test_data:', daily_test_data)
         
-        # # 获取预测
-        # daily_predictions = predictor.predict(daily_test_data)
+        # 获取预测
+        daily_predictions = predictor.predict(daily_test_data)
         # print('daily_predictions:', daily_predictions)
+        end2 = time.time()
+        # print('predict time:', end2-end)
+        rmse = np.sqrt(mean_squared_error(daily_test_df['wind_speed'].values, daily_predictions['mean'].values))
+        daily_rmse[current_date] = rmse
         
-        # 计算当天的RMSE
-        score = predictor.evaluate(daily_test_data)  # TODO
-        daily_rmse[current_date] = score['RMSE']
+        # # 计算当天的RMSE
+        # score = predictor.evaluate(daily_test_data)  # TODO
+        # end3 = time.time()
+        # print('evaluate time:', end3-end)
+        # daily_rmse[current_date] = score['RMSE']
         
         print(f"Date: {current_date}, RMSE: {daily_rmse[current_date]}")
     
     current_date = next_date
+    current_df = pd.concat([current_df, daily_test_df])
 
 # 绘制每日RMSE图表
 plt.figure(figsize=(15, 6))
@@ -89,7 +101,7 @@ plt.ylabel('RMSE')
 plt.grid(True)
 plt.xticks(rotation=45)
 plt.tight_layout()
-plt.savefig('daily_rmse.png')
+plt.savefig(f'daily_rmse_horizon_{horizon}.png')
 # plt.show()
 
 # 保存每日RMSE到CSV文件
