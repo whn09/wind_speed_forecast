@@ -12,4 +12,5 @@ pip install --upgrade flash-attn --no-build-isolation
 
 python forecasting_autogluon.py
 
-s5cmd cp s3://datalab/nsf-ncar-era5/surface/wind_speed_*.parquet /opt/dlami/nvme/nsf-ncar-era5/surface/
+s5cmd cp s3://datalab/nsf-ncar-era5/surface/wind_speed_*.parquet /opt/dlami/nvme/surface/
+s5cmd cp s3://datalab/nsf-ncar-era5/surface/merged_data_horizon_*.parquet /opt/dlami/nvme/surface/
