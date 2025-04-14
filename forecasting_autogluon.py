@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import timedelta
 from sklearn.metrics import mean_squared_error
 
-horizon = 24  # 24,6,3,1
+horizon = 6  # 24,6,3,1
 train_test_split_time = pd.Timestamp('2024-01-01 00:00:00')
 base_dir = '/opt/dlami/nvme/surface/'
 
@@ -44,65 +44,82 @@ predictor.fit(
 # predictions = predictor.predict(train_data)
 # print('predictions:', predictions)
 
-# 按天评估RMSE
-start_date = test_df['time'].min().date()
-end_date = test_df['time'].max().date()
-# end_date = start_date + timedelta(days=30)  # TODO use only some days
-current_date = start_date
-current_df = train_df
+# 按时间间隔评估RMSE
+start_date = test_df['time'].min()
+end_date = test_df['time'].max()
+# end_date = test_df['time'].min()+pd.Timedelta(hours=48)  # TODO only for unit test
+current_time = start_date
+current_df = train_df.copy()
 
 daily_rmse = {}
+time_step = pd.Timedelta(hours=horizon)  # 根据horizon动态设置时间步长
 
-while current_date <= end_date:
-    next_date = current_date + timedelta(days=1)
+# 记录所有日期，用于后续绘图
+all_dates = []
+
+while current_time <= end_date:
+    next_time = current_time + time_step
     
-    # 获取当天的测试数据
-    daily_test_df = test_df[(test_df['time'].dt.date == current_date)]
-    # print('daily_test_df:', daily_test_df)
+    # 获取当前时间段的测试数据
+    interval_test_df = test_df[(test_df['time'] >= current_time) & (test_df['time'] < next_time)]
     
-    if len(daily_test_df) > 0:
+    if len(interval_test_df) > 0:
         start = time.time()
-        daily_test_data = TimeSeriesDataFrame.from_data_frame(
+        # 准备当前的训练数据
+        current_test_data = TimeSeriesDataFrame.from_data_frame(
             current_df,
             id_column="item_id",
             timestamp_column="time"
         )
         end = time.time()
-        # print('TimeSeriesDataFrame time:', end-start)
-        # print('daily_test_data:', daily_test_data)
         
         # 获取预测
-        daily_predictions = predictor.predict(daily_test_data)
-        # print('daily_predictions:', daily_predictions)
+        interval_predictions = predictor.predict(current_test_data)
         end2 = time.time()
-        # print('predict time:', end2-end)
-        rmse = np.sqrt(mean_squared_error(daily_test_df['wind_speed'].values, daily_predictions['mean'].values))
-        daily_rmse[current_date] = rmse
         
-        # # 计算当天的RMSE
-        # score = predictor.evaluate(daily_test_data)  # TODO
-        # end3 = time.time()
-        # print('evaluate time:', end3-end)
-        # daily_rmse[current_date] = score['RMSE']
+        # 确保预测结果和测试数据可以对齐
+        # 注意：实际应用中可能需要更复杂的对齐逻辑
+        pred_values = interval_predictions['mean'].values
+        test_values = interval_test_df['wind_speed'].values
         
-        print(f"Date: {current_date}, RMSE: {daily_rmse[current_date]}")
+        # 如果预测结果和测试数据长度不匹配，可能需要截断
+        min_length = min(len(pred_values), len(test_values))
+        pred_values = pred_values[:min_length]
+        test_values = test_values[:min_length]
+        
+        if min_length > 0:
+            rmse = np.sqrt(mean_squared_error(test_values, pred_values))
+            date_key = current_time.date()  # 使用日期作为键
+            
+            # 如果同一日期有多个时间点，取平均值
+            if date_key in daily_rmse:
+                daily_rmse[date_key].append(rmse)
+            else:
+                daily_rmse[date_key] = [rmse]
+                all_dates.append(date_key)
+            
+            print(f"Time: {current_time}, RMSE: {rmse}")
+        
+        # 更新当前数据集，添加这个时间段的测试数据
+        current_df = pd.concat([current_df, interval_test_df])
     
-    current_date = next_date
-    current_df = pd.concat([current_df, daily_test_df])
+    current_time = next_time
+
+# 计算每日平均RMSE
+avg_daily_rmse = {date: np.mean(rmses) for date, rmses in daily_rmse.items()}
 
 # 绘制每日RMSE图表
 plt.figure(figsize=(15, 6))
-dates = list(daily_rmse.keys())
-rmse_values = list(daily_rmse.values())
+dates = all_dates
+rmse_values = [avg_daily_rmse[date] for date in dates]
 plt.plot(dates, rmse_values, marker='o')
-plt.title('Daily RMSE for Test Data')
+plt.title(f'Daily RMSE for Test Data (Horizon = {horizon}h)')
 plt.xlabel('Date')
 plt.ylabel('RMSE')
 plt.grid(True)
 plt.xticks(rotation=45)
 plt.tight_layout()
 plt.savefig(f'daily_rmse_horizon_{horizon}.png')
-# plt.show()
 
 # 保存每日RMSE到CSV文件
 daily_rmse_df = pd.DataFrame({
