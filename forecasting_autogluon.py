@@ -10,6 +10,7 @@ from sklearn.metrics import mean_squared_error
 horizon = 6  # 24,6,3,1
 train_test_split_time = pd.Timestamp('2024-01-01 00:00:00')
 base_dir = '/opt/dlami/nvme/surface/'
+lead_time = 10
 
 df = pd.read_parquet(os.path.join(base_dir, f'merged_data_horizon_{horizon}.parquet'))
 print('df:', df)
@@ -27,7 +28,7 @@ print('train_data:', train_data)
 
 predictor = TimeSeriesPredictor(
     freq=f'{horizon}h',
-    prediction_length=1,
+    prediction_length=int(lead_time*24/horizon),  # 1,
     path=f"autogluon-wind-speed-horizon-{horizon}",
     target="wind_speed",
     eval_metric="RMSE",
@@ -38,6 +39,22 @@ predictor.fit(
     presets="high_quality",
     time_limit=3600,  # recommended: 3600
 )
+
+# predictor.fit(
+#     train_data,
+#     presets="bolt_small",
+# )
+
+# predictor.fit(
+#     train_data,
+#     hyperparameters={
+#         "Chronos": [
+#             {"model_path": "bolt_base", "ag_args": {"name_suffix": "ZeroShot"}},
+#             {"model_path": "bolt_small", "fine_tune": True, "ag_args": {"name_suffix": "FineTuned"}},
+#         ]
+#     },
+#     time_limit=600,  # time limit in seconds
+#     enable_ensemble=False)
 
 # predictor = TimeSeriesPredictor.load(f"autogluon-wind-speed-horizon-{horizon}")
 

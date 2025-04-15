@@ -9,6 +9,7 @@ uv pip install -q autogluon.timeseries --system
 uv pip uninstall -q torchaudio torchvision torchtext --system # fix incompatible package versions on Colab
 
 pip install --upgrade flash-attn --no-build-isolation
+pip install tf-keras
 
 python forecasting_autogluon.py
 
